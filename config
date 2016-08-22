@@ -1,0 +1,14 @@
+ngx_addon_name=ngx_http_auth_basic_ldap_module
+
+if test -n "$ngx_module_link"; then
+    ngx_module_type=HTTP
+    ngx_module_name=$ngx_addon_name
+    ngx_module_incs=
+    ngx_module_srcs="$ngx_addon_dir/src/ngx_http_auth_basic_ldap_module.c"
+    ngx_module_libs="-lldap"
+
+    . auto/module
+else
+    echo "This module can only be installed as a dynamic module.";
+    exit 1
+fi
