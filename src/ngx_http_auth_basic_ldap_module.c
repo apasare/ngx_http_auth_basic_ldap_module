@@ -5,6 +5,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ngx_crypt.h>
 
 
 typedef struct {
@@ -116,11 +117,16 @@ ngx_http_auth_basic_ldap_handler(ngx_http_request_t *r)
 {
     ngx_int_t rc;
     ngx_http_auth_basic_ldap_loc_conf_t *alcf;
+    ngx_str_t user;
 
     int ldap_response;
     int desired_version = LDAP_VERSION3;
     int auth_method = LDAP_AUTH_SIMPLE;
-    char *dn = NULL;
+    size_t len;
+    u_char *filter, *p;
+    char *attrs[] = {"userPassword", NULL}, **vals;
+    u_char *encrypted;
+
     LDAP *ld;
     LDAPMessage *msg;
     LDAPMessage *entry;
@@ -155,22 +161,16 @@ ngx_http_auth_basic_ldap_handler(ngx_http_request_t *r)
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    ngx_str_t user;
+    if (!r->headers_in.passwd.len) {
+        return ngx_http_auth_basic_ldap_set_realm(r, &alcf->realm);
+    }
+
     user.len = r->headers_in.user.len;
     user.data = ngx_pnalloc(r->pool, user.len + 1);
     ngx_memzero(user.data, user.len);
     if (user.len) {
         ngx_cpystrn(user.data, r->headers_in.user.data, user.len + 1);
     }
-
-    ngx_str_t pwd;
-    pwd.len = r->headers_in.passwd.len;
-    pwd.data = ngx_pnalloc(r->pool, pwd.len + 1);
-    ngx_memzero(pwd.data, pwd.len);
-    if (!pwd.len) {
-        return ngx_http_auth_basic_ldap_set_realm(r, &alcf->realm);
-    }
-    pwd.data = &r->headers_in.user.data[user.len+1];
 
     ldap_response = ldap_initialize(&ld, (char *) alcf->ldap_url.data);
     if (ldap_response) {
@@ -199,8 +199,6 @@ ngx_http_auth_basic_ldap_handler(ngx_http_request_t *r)
         return ngx_http_auth_basic_ldap_set_realm(r, &alcf->realm);
     }
 
-    size_t len;
-    u_char *filter, *p;
     len = strlen("(=)") + user.len + alcf->ldap_search_attr.len;
     filter = ngx_pnalloc(r->pool, len + 1);
     ngx_memzero(filter, len);
@@ -208,12 +206,13 @@ ngx_http_auth_basic_ldap_handler(ngx_http_request_t *r)
     p = ngx_cpymem(p, alcf->ldap_search_attr.data, alcf->ldap_search_attr.len);
     *p++ = '=';
     p = ngx_cpymem(p, user.data, user.len);
-    *p = ')';
+    *p++ = ')';
+    *p = '\0';
 
     ldap_response = ldap_search_s(
         ld, (char *) alcf->ldap_search_base.data,
         LDAP_SCOPE_SUBTREE, (char *) filter,
-        NULL, 0, &msg
+        attrs, 0, &msg
     );
     if (ldap_response != LDAP_SUCCESS) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
@@ -223,22 +222,21 @@ ngx_http_auth_basic_ldap_handler(ngx_http_request_t *r)
         return ngx_http_auth_basic_ldap_set_realm(r, &alcf->realm);
     }
 
-    for(
+    for (
         entry = ldap_first_entry(ld, msg);
         entry != NULL;
         entry = ldap_next_entry(ld, entry)
     ) {
-        if((dn = ldap_get_dn(ld, entry)) != NULL) {
-            ldap_response = ldap_compare_s(ld, dn, "userPassword", (char *) pwd.data);
-            ldap_memfree(dn);
-            if (ldap_response != LDAP_SUCCESS) {
-                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                              "ldap_compare_s failed: %s",
-                              ldap_err2string(ldap_response));
-            } else {
-                return NGX_OK;
-            }
+        vals = ldap_get_values(ld, entry, "userPassword");
+        if (vals == NULL) {
+            continue;
         }
+
+        rc = ngx_crypt(r->pool, r->headers_in.passwd.data, (u_char *) vals[0], &encrypted);
+        if (rc == NGX_OK && ngx_strcmp(encrypted, vals[0]) == 0) {
+            return NGX_OK;
+        }
+        ldap_value_free(vals);
     }
 
     ldap_msgfree(entry);

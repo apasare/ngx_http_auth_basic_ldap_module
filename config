@@ -1,11 +1,15 @@
 ngx_addon_name=ngx_http_auth_basic_ldap_module
 
 if test -n "$ngx_module_link"; then
+    USE_MD5=YES
+    USE_SHA1=YES
+    have=NGX_CRYPT . auto/have
+
     ngx_module_type=HTTP
     ngx_module_name=$ngx_addon_name
     ngx_module_incs=
     ngx_module_srcs="$ngx_addon_dir/src/ngx_http_auth_basic_ldap_module.c"
-    ngx_module_libs="-lldap"
+    ngx_module_libs="$CRYPT_LIB -lldap"
 
     . auto/module
 else
