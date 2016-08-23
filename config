@@ -16,3 +16,5 @@ else
     echo "This module can only be installed as a dynamic module.";
     exit 1
 fi
+
+USE_OPENSSL=YES

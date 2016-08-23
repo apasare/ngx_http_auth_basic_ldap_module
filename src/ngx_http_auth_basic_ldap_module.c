@@ -138,9 +138,6 @@ ngx_http_auth_basic_ldap_handler(ngx_http_request_t *r)
         || alcf->ldap_bind_passwd.len == 0
         || alcf->ldap_search_base.len == 0
     ) {
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "%V %V", &alcf->realm, &alcf->ldap_url);
-
         return NGX_DECLINED;
     }
 
