@@ -30,48 +30,42 @@ static ngx_int_t ngx_http_auth_basic_ldap_init(ngx_conf_t *cf);
 static ngx_command_t  ngx_http_auth_basic_ldap_commands[] = {
 
     { ngx_string("auth_basic_ldap_realm"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
-                        |NGX_CONF_TAKE1,
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_str_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_ldap_loc_conf_t, realm),
       NULL },
 
     { ngx_string("auth_basic_ldap_url"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
-                        |NGX_CONF_TAKE1,
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_str_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_ldap_loc_conf_t, ldap_url),
       NULL },
 
     { ngx_string("auth_basic_ldap_bind_dn"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
-                        |NGX_CONF_TAKE1,
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_str_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_ldap_loc_conf_t, ldap_bind_dn),
       NULL },
 
     { ngx_string("auth_basic_ldap_bind_password"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
-                        |NGX_CONF_TAKE1,
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_str_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_ldap_loc_conf_t, ldap_bind_passwd),
       NULL },
 
     { ngx_string("auth_basic_ldap_search_base"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
-                        |NGX_CONF_TAKE1,
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_str_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_ldap_loc_conf_t, ldap_search_base),
       NULL },
 
     { ngx_string("auth_basic_ldap_search_attr"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
-                        |NGX_CONF_TAKE1,
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_str_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_ldap_loc_conf_t, ldap_search_attr),
@@ -231,6 +225,10 @@ ngx_http_auth_basic_ldap_handler(ngx_http_request_t *r)
 
         rc = ngx_crypt(r->pool, r->headers_in.passwd.data, (u_char *) vals[0], &encrypted);
         if (rc == NGX_OK && ngx_strcmp(encrypted, vals[0]) == 0) {
+            ldap_msgfree(entry);
+            ldap_value_free(vals);
+            ldap_unbind_s(ld);
+
             return NGX_OK;
         }
         ldap_value_free(vals);
