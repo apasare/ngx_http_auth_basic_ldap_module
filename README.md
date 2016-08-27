@@ -93,12 +93,12 @@ Grab the nginx source code from [nginx.org](http://nginx.org/), for example, the
 
 After the compilation is finished you will be able to load the module dynamically with [load_module](http://nginx.org/en/docs/ngx_core_module.html#load_module) directive, for example:
 
-    load_module /opt/nginx/modules/ngx_http_auth_basic_ldap_module.so
+    load_module /opt/nginx/modules/ngx_http_auth_basic_ldap_module.so;
 
 # Example configuration
 
     location / {
-        auth_basic_ldap_realm "ldap";
+        auth_basic_ldap_realm "Ldap Auth";
         auth_basic_ldap_url "ldap://localhost:389";
         auth_basic_ldap_bind_dn 'cn="Common Name"';
         auth_basic_ldap_bind_password "bind-password";
